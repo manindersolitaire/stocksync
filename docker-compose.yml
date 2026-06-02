@@ -15,7 +15,7 @@ services:
       - "5000:5000"
     environment:
       - PORT=5000
-      - MONGODB_URI=mongodb://mongodb:27017/stocksync
+      - MONGODB_URI=mongodb+srv://manindersolitaire:mynameismaninder@cluster0.kkpgvue.mongodb.net/stocksync
       - NODE_ENV=development
     depends_on:
       - mongodb
