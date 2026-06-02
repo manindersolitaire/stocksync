@@ -3,7 +3,7 @@ const Customer = require('../models/Customer');
 // Get all customers
 exports.getAllCustomers = async (req, res, next) => {
     try {
-        const customers = await Customer.findAll();
+        const customers = await Customer.find();
         res.json(customers);
     } catch (err) {
         next(err);
@@ -13,7 +13,7 @@ exports.getAllCustomers = async (req, res, next) => {
 // Get customer by ID
 exports.getCustomerById = async (req, res, next) => {
     try {
-        const customer = await Customer.findByPk(req.params.id);
+        const customer = await Customer.findById(req.params.id);
         if (!customer) {
             return res.status(404).json({ message: 'Customer not found' });
         }
@@ -39,7 +39,7 @@ exports.createCustomer = async (req, res, next) => {
         });
         res.status(201).json(customer);
     } catch (err) {
-        if (err.name === 'SequelizeUniqueConstraintError') {
+        if (err.code === 11000) {
             return res.status(400).json({ message: 'Email already exists' });
         }
         next(err);
@@ -49,11 +49,10 @@ exports.createCustomer = async (req, res, next) => {
 // Delete customer
 exports.deleteCustomer = async (req, res, next) => {
     try {
-        const customer = await Customer.findByPk(req.params.id);
+        const customer = await Customer.findByIdAndDelete(req.params.id);
         if (!customer) {
             return res.status(404).json({ message: 'Customer not found' });
         }
-        await customer.destroy();
         res.json({ message: 'Customer deleted' });
     } catch (err) {
         next(err);

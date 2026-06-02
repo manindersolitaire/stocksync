@@ -3,7 +3,7 @@ const Product = require('../models/Product');
 // Get all products
 exports.getAllProducts = async (req, res, next) => {
     try {
-        const products = await Product.findAll();
+        const products = await Product.find();
         res.json(products);
     } catch (err) {
         next(err);
@@ -13,7 +13,7 @@ exports.getAllProducts = async (req, res, next) => {
 // Get product by ID
 exports.getProductById = async (req, res, next) => {
     try {
-        const product = await Product.findByPk(req.params.id);
+        const product = await Product.findById(req.params.id);
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
@@ -28,7 +28,6 @@ exports.createProduct = async (req, res, next) => {
     try {
         const { name, sku, price, quantity } = req.body;
         
-        // Basic validation
         if (!name || !sku || price === undefined || quantity === undefined) {
             return res.status(400).json({ message: 'All fields are required' });
         }
@@ -41,7 +40,7 @@ exports.createProduct = async (req, res, next) => {
         });
         res.status(201).json(product);
     } catch (err) {
-        if (err.name === 'SequelizeUniqueConstraintError') {
+        if (err.code === 11000) {
             return res.status(400).json({ message: 'SKU must be unique' });
         }
         next(err);
@@ -52,7 +51,7 @@ exports.createProduct = async (req, res, next) => {
 exports.updateProduct = async (req, res, next) => {
     try {
         const { name, sku, price, quantity } = req.body;
-        const product = await Product.findByPk(req.params.id);
+        const product = await Product.findById(req.params.id);
         
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
@@ -66,7 +65,7 @@ exports.updateProduct = async (req, res, next) => {
         await product.save();
         res.json(product);
     } catch (err) {
-        if (err.name === 'SequelizeUniqueConstraintError') {
+        if (err.code === 11000) {
             return res.status(400).json({ message: 'SKU must be unique' });
         }
         next(err);
@@ -76,11 +75,10 @@ exports.updateProduct = async (req, res, next) => {
 // Delete product
 exports.deleteProduct = async (req, res, next) => {
     try {
-        const product = await Product.findByPk(req.params.id);
+        const product = await Product.findByIdAndDelete(req.params.id);
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
-        await product.destroy();
         res.json({ message: 'Product deleted' });
     } catch (err) {
         next(err);

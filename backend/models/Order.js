@@ -1,34 +1,18 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-const Customer = require('./Customer');
-const Product = require('./Product');
+const mongoose = require('mongoose');
 
-const Order = sequelize.define('Order', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
-  },
-  quantity: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    validate: {
-      min: 1
-    }
-  },
-  totalAmount: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false
-  }
+const orderSchema = new mongoose.Schema({
+  CustomerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
+  ProductId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+  quantity: { type: Number, required: true, min: 1 },
+  totalAmount: { type: Number, required: true }
 }, {
   timestamps: true
 });
 
-// Associations
-Order.belongsTo(Customer, { foreignKey: { allowNull: false } });
-Customer.hasMany(Order);
+orderSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: function (doc, ret) { ret.id = ret._id; delete ret._id; }
+});
 
-Order.belongsTo(Product, { foreignKey: { allowNull: false } });
-Product.hasMany(Order);
-
-module.exports = Order;
+module.exports = mongoose.model('Order', orderSchema);

@@ -1,17 +1,14 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Customer = require('../models/Customer');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
 // Get all orders
 exports.getAllOrders = async (req, res, next) => {
     try {
-        const orders = await Order.findAll({
-            include: [
-                { model: Customer, attributes: ['name', 'email'] },
-                { model: Product, attributes: ['name', 'sku', 'price'] }
-            ]
-        });
+        const orders = await Order.find()
+            .populate('CustomerId', 'name email')
+            .populate('ProductId', 'name sku price');
         res.json(orders);
     } catch (err) {
         next(err);
@@ -21,12 +18,9 @@ exports.getAllOrders = async (req, res, next) => {
 // Get order by ID
 exports.getOrderById = async (req, res, next) => {
     try {
-        const order = await Order.findByPk(req.params.id, {
-            include: [
-                { model: Customer, attributes: ['name', 'email', 'phone'] },
-                { model: Product, attributes: ['name', 'sku', 'price'] }
-            ]
-        });
+        const order = await Order.findById(req.params.id)
+            .populate('CustomerId', 'name email phone')
+            .populate('ProductId', 'name sku price');
         if (!order) {
             return res.status(404).json({ message: 'Order not found' });
         }
@@ -38,30 +32,36 @@ exports.getOrderById = async (req, res, next) => {
 
 // Create order
 exports.createOrder = async (req, res, next) => {
-    const t = await sequelize.transaction();
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
         const { CustomerId, ProductId, quantity } = req.body;
 
         if (!CustomerId || !ProductId || !quantity || quantity <= 0) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(400).json({ message: 'Invalid order data' });
         }
 
         // 1. Check Product & Stock
-        const product = await Product.findByPk(ProductId, { transaction: t });
+        const product = await Product.findById(ProductId).session(session);
         if (!product) {
-            await t.rollback();
+            await session.abortTransaction();
+            session.endSession();
             return res.status(404).json({ message: 'Product not found' });
         }
 
         if (product.quantity < quantity) {
-            await t.rollback();
+            await session.abortTransaction();
+            session.endSession();
             return res.status(400).json({ message: 'Insufficient stock' });
         }
 
         // 2. Check Customer
-        const customer = await Customer.findByPk(CustomerId, { transaction: t });
+        const customer = await Customer.findById(CustomerId).session(session);
         if (!customer) {
-            await t.rollback();
+            await session.abortTransaction();
+            session.endSession();
             return res.status(404).json({ message: 'Customer not found' });
         }
 
@@ -69,57 +69,61 @@ exports.createOrder = async (req, res, next) => {
         const totalAmount = (product.price * quantity).toFixed(2);
 
         // 4. Create Order
-        const order = await Order.create({
+        const orderArray = await Order.create([{
             CustomerId,
             ProductId,
             quantity,
             totalAmount
-        }, { transaction: t });
+        }], { session });
+        const order = orderArray[0];
 
         // 5. Reduce Stock
         product.quantity -= quantity;
-        await product.save({ transaction: t });
+        await product.save({ session });
 
-        await t.commit();
+        await session.commitTransaction();
+        session.endSession();
         
         // Return order with associated data
-        const fullOrder = await Order.findByPk(order.id, {
-            include: [
-                { model: Customer, attributes: ['name', 'email'] },
-                { model: Product, attributes: ['name', 'sku'] }
-            ]
-        });
+        const fullOrder = await Order.findById(order._id)
+            .populate('CustomerId', 'name email')
+            .populate('ProductId', 'name sku');
         
         res.status(201).json(fullOrder);
     } catch (err) {
-        await t.rollback();
+        await session.abortTransaction();
+        session.endSession();
         next(err);
     }
 };
 
 // Delete order (Cancel order)
 exports.deleteOrder = async (req, res, next) => {
-    const t = await sequelize.transaction();
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
-        const order = await Order.findByPk(req.params.id, { transaction: t });
+        const order = await Order.findById(req.params.id).session(session);
         if (!order) {
-            await t.rollback();
+            await session.abortTransaction();
+            session.endSession();
             return res.status(404).json({ message: 'Order not found' });
         }
 
         // Optional: Restore stock when order is deleted/cancelled
-        const product = await Product.findByPk(order.ProductId, { transaction: t });
+        const product = await Product.findById(order.ProductId).session(session);
         if (product) {
             product.quantity += order.quantity;
-            await product.save({ transaction: t });
+            await product.save({ session });
         }
 
-        await order.destroy({ transaction: t });
-        await t.commit();
+        await Order.findByIdAndDelete(order._id).session(session);
+        await session.commitTransaction();
+        session.endSession();
         
         res.json({ message: 'Order deleted and stock restored' });
     } catch (err) {
-        await t.rollback();
+        await session.abortTransaction();
+        session.endSession();
         next(err);
     }
 };

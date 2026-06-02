@@ -42,8 +42,7 @@ exports.customerValidation = validate([
 
 // Order validations
 exports.orderValidation = validate([
-    body('customerId').isMongoId().withMessage('Valid Customer ID is required'),
-    body('items').isArray({ min: 1 }).withMessage('At least one item is required'),
-    body('items.*.productId').isMongoId().withMessage('Valid Product ID is required'),
-    body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1')
+    body('CustomerId').isMongoId().withMessage('Valid Customer ID is required'),
+    body('ProductId').isMongoId().withMessage('Valid Product ID is required'),
+    body('quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1')
 ]);
