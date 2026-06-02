@@ -12,7 +12,12 @@ const orderSchema = new mongoose.Schema({
 orderSchema.set('toJSON', {
   virtuals: true,
   versionKey: false,
-  transform: function (doc, ret) { ret.id = ret._id; delete ret._id; }
+  transform: function (doc, ret) { 
+    ret.id = ret._id; 
+    ret.Customer = ret.CustomerId;
+    ret.Product = ret.ProductId;
+    delete ret._id; 
+  }
 });
 
 module.exports = mongoose.model('Order', orderSchema);
